@@ -228,9 +228,10 @@ private fun NIDCardListItem(card: NIDCard, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Photo or placeholder
-            if (photoBitmap != null) {
+            val photo = photoBitmap
+            if (photo != null) {
                 androidx.compose.foundation.Image(
-                    bitmap = photoBitmap.asImageBitmap(),
+                    bitmap = photo.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier
                         .size(52.dp)

@@ -639,7 +639,7 @@ private fun RowScope.ProgressDivider(completed: Boolean) {
 }
 
 @Composable
-private fun SectionHeader(
+internal fun SectionHeader(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String
@@ -667,7 +667,7 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun ModernLabel(
+internal fun ModernLabel(
     text: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
@@ -679,7 +679,7 @@ private fun ModernLabel(
 }
 
 @Composable
-private fun ModernOutlinedField(
+internal fun ModernOutlinedField(
     label: String,
     value: MutableState<String>,
     placeholder: String = "",
@@ -730,7 +730,7 @@ private fun ModernOutlinedField(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ModernDropdownField(
+internal fun ModernDropdownField(
     options: List<String>,
     selected: MutableState<String>,
     placeholder: String,
@@ -771,7 +771,7 @@ private fun ModernDropdownField(
 }
 
 @Composable
-private fun ModernUploadZone(
+internal fun ModernUploadZone(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     subtitle: String,

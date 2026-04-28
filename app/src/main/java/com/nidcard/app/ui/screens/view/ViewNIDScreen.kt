@@ -372,9 +372,10 @@ fun ViewNIDScreen(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(6.dp)
             ) {
-                if (frontBitmap != null) {
+                val front = frontBitmap
+                if (front != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = frontBitmap.asImageBitmap(),
+                        bitmap = front.asImageBitmap(),
                         contentDescription = "NID Card Front",
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -412,9 +413,10 @@ fun ViewNIDScreen(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(6.dp)
             ) {
-                if (backBitmap != null) {
+                val back = backBitmap
+                if (back != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = backBitmap.asImageBitmap(),
+                        bitmap = back.asImageBitmap(),
                         contentDescription = "NID Card Back",
                         modifier = Modifier.fillMaxWidth()
                     )
