@@ -47,6 +47,15 @@ fun EditNIDScreen(
     val selectedCard by viewModel.selectedCard.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(selectedCard) {
+        if (selectedCard != null) isLoading = false
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(3000)
+        if (selectedCard == null) isLoading = false
+    }
 
     // Form fields - pre-populate from existing card
     val nameBn = remember { mutableStateOf("") }
@@ -278,12 +287,31 @@ fun EditNIDScreen(
         )
     }
 
-    if (selectedCard == null) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(GovBg),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = GovGreen, strokeWidth = 3.dp)
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize().background(GovBg), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = GovGreen, strokeWidth = 3.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("ডাটা লোড হচ্ছে...", color = GovTextLight, fontSize = 16.sp)
+            }
+        }
+        return
+    }
+
+    val card = selectedCard
+    if (card == null) {
+        Box(modifier = Modifier.fillMaxSize().background(GovBg), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Outlined.SearchOff, null, modifier = Modifier.size(64.dp), tint = GovTextMuted)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("কোনো ডাটা পাওয়া যায়নি", color = GovTextLight, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(onClick = { navController.popBackStack() }, colors = ButtonDefaults.buttonColors(containerColor = GovGreen), shape = RoundedCornerShape(12.dp)) {
+                    Icon(Icons.Default.ArrowBack, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("ফিরে যান")
+                }
+            }
         }
         return
     }
@@ -413,15 +441,15 @@ fun EditNIDScreen(
                                 labels = mapOf("male" to "পুরুষ", "female" to "মহিলা", "other" to "অন্যান্য")
                             )
                         }
-                        ModernOutlinedField(
-                            label = "জন্মস্থান *",
-                            value = birth,
-                            placeholder = "ঢাকা",
-                            error = errors.value["birth"],
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = Icons.Outlined.LocationOn
-                        )
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    ModernOutlinedField(
+                        label = "জন্মস্থান *",
+                        value = birth,
+                        placeholder = "ঢাকা",
+                        error = errors.value["birth"],
+                        leadingIcon = Icons.Outlined.LocationOn
+                    )
 
                     // --- Parent Info ---
                     Spacer(modifier = Modifier.height(20.dp))

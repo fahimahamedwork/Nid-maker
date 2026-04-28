@@ -27,7 +27,6 @@ import androidx.navigation.NavController
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,19 +37,11 @@ fun SearchScreen(
 ) {
     val searchQuery = remember { mutableStateOf("") }
     val searchResults by viewModel.searchResults.collectAsState()
-    var isSearching by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery.value) {
         if (searchQuery.value.isNotBlank()) {
-            isSearching = true
             viewModel.setSearchQuery(searchQuery.value)
-        } else {
-            isSearching = false
         }
-    }
-
-    LaunchedEffect(searchResults) {
-        isSearching = false
     }
 
     Column(modifier = Modifier.fillMaxSize().background(GovBg)) {
@@ -97,9 +88,11 @@ fun SearchScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = GovGreen,
                     unfocusedBorderColor = GovBorder,
-                    cursorColor = GovGreen
+                    cursorColor = GovGreen,
+                    focusedTextColor = GovText,
+                    unfocusedTextColor = GovText
                 ),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = GovText)
             )
 
             if (searchResults.isNotEmpty()) {
@@ -143,40 +136,34 @@ fun SearchScreen(
                     )
                 }
             }
-        } else if (isSearching || searchResults.isEmpty()) {
+        } else if (searchResults.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (isSearching) {
-                        CircularProgressIndicator(color = GovGreen, strokeWidth = 3.dp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("খুঁজছি...", color = GovTextLight, fontSize = 14.sp)
-                    } else {
-                        Surface(
-                            modifier = Modifier.size(80.dp),
-                            shape = CircleShape,
-                            color = Color(0xFFF1F5F9)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.SearchOff, null, modifier = Modifier.size(40.dp), tint = GovTextMuted)
-                            }
+                    Surface(
+                        modifier = Modifier.size(80.dp),
+                        shape = CircleShape,
+                        color = Color(0xFFF1F5F9)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.SearchOff, null, modifier = Modifier.size(40.dp), tint = GovTextMuted)
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "কোনো তথ্য পাওয়া যায়নি",
-                            color = GovTextLight,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "অন্য কিছু দিয়ে খুঁজে দেখুন",
-                            color = GovTextMuted,
-                            fontSize = 13.sp
-                        )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "কোনো তথ্য পাওয়া যায়নি",
+                        color = GovTextLight,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "অন্য কিছু দিয়ে খুঁজে দেখুন",
+                        color = GovTextMuted,
+                        fontSize = 13.sp
+                    )
                 }
             }
         } else {

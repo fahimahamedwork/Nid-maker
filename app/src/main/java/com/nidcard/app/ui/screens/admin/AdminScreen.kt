@@ -168,8 +168,8 @@ private fun AdminLoginScreen(
                         },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen, cursorColor = GovGreen),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen, cursorColor = GovGreen, focusedTextColor = GovText, unfocusedTextColor = GovText),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, color = GovText)
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -205,7 +205,7 @@ private fun AdminLoginScreen(
                         leadingIcon = { Icon(Icons.Default.Security, null, modifier = Modifier.size(20.dp), tint = GovTextLight) },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed, focusedTextColor = GovText, unfocusedTextColor = GovText)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -217,7 +217,7 @@ private fun AdminLoginScreen(
                         leadingIcon = { Icon(Icons.Default.Lock, null, modifier = Modifier.size(20.dp), tint = GovTextLight) },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed, focusedTextColor = GovText, unfocusedTextColor = GovText)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -229,7 +229,7 @@ private fun AdminLoginScreen(
                         leadingIcon = { Icon(Icons.Default.Lock, null, modifier = Modifier.size(20.dp), tint = GovTextLight) },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed, focusedTextColor = GovText, unfocusedTextColor = GovText)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -483,8 +483,8 @@ private fun AdminPanelScreen(
                         placeholder = { Text("নাম, NID, PIN দিয়ে খুঁজুন...", fontSize = 13.sp, color = GovTextMuted) },
                         leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp), tint = GovTextLight) },
                         shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen, cursorColor = GovGreen),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen, cursorColor = GovGreen, focusedTextColor = GovText, unfocusedTextColor = GovText),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = GovText)
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -686,7 +686,7 @@ private fun AdminPanelScreen(
                                 singleLine = true,
                                 shape = RoundedCornerShape(14.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen)
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovGreen, focusedTextColor = GovText, unfocusedTextColor = GovText)
                             )
                         } else if (timerDateMillis > 0) {
                             Spacer(modifier = Modifier.height(12.dp))

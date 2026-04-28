@@ -180,9 +180,11 @@ fun HomeScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = GovGreen,
                         unfocusedBorderColor = GovBorder,
-                        cursorColor = GovGreen
+                        cursorColor = GovGreen,
+                        focusedTextColor = GovText,
+                        unfocusedTextColor = GovText
                     ),
-                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = GovText)
                 )
             }
         }

@@ -20,6 +20,19 @@ object NIDCardExporter {
         widthPx: Int = 1075,
         heightPx: Int = 680
     ): Bitmap {
+        return try {
+            createFrontCardBitmapInternal(card, widthPx, heightPx)
+        } catch (e: OutOfMemoryError) {
+            System.gc()
+            createFrontCardBitmapInternal(card, (widthPx * 0.7).toInt(), (heightPx * 0.7).toInt())
+        }
+    }
+
+    private fun createFrontCardBitmapInternal(
+        card: com.nidcard.app.data.entity.NIDCard,
+        widthPx: Int,
+        heightPx: Int
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -175,6 +188,19 @@ object NIDCardExporter {
         card: com.nidcard.app.data.entity.NIDCard,
         widthPx: Int = 1075,
         heightPx: Int = 680
+    ): Bitmap {
+        return try {
+            createBackCardBitmapInternal(card, widthPx, heightPx)
+        } catch (e: OutOfMemoryError) {
+            System.gc()
+            createBackCardBitmapInternal(card, (widthPx * 0.7).toInt(), (heightPx * 0.7).toInt())
+        }
+    }
+
+    private fun createBackCardBitmapInternal(
+        card: com.nidcard.app.data.entity.NIDCard,
+        widthPx: Int,
+        heightPx: Int
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

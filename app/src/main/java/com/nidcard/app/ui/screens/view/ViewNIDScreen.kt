@@ -47,8 +47,40 @@ fun ViewNIDScreen(
     var backBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var loadFailed by remember { mutableStateOf(false) }
 
-    if (selectedCard == null) {
+    LaunchedEffect(selectedCard) {
+        if (selectedCard != null) {
+            isLoading = false
+            loadFailed = false
+        }
+    }
+
+    // Give loadCardById time to complete before showing error
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000)
+        if (selectedCard == null) {
+            isLoading = false
+            loadFailed = true
+        }
+    }
+
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(GovBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = GovGreen, strokeWidth = 3.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("লোড হচ্ছে...", color = GovTextLight, fontSize = 16.sp)
+            }
+        }
+        return
+    }
+
+    if (loadFailed || selectedCard == null) {
         Box(
             modifier = Modifier.fillMaxSize().background(GovBg),
             contentAlignment = Alignment.Center
@@ -65,7 +97,6 @@ fun ViewNIDScreen(
                 }
             }
         }
-        LaunchedEffect(Unit) { navController.popBackStack() }
         return
     }
 

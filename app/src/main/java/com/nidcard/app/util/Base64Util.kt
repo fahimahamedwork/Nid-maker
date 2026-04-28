@@ -48,15 +48,18 @@ object Base64Util {
      */
     fun compressBitmap(bitmap: Bitmap, maxBytes: Int = 512 * 1024, format: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG): Pair<Bitmap?, String> {
         var quality = 85
-        var outputStream = ByteArrayOutputStream()
+        val outputStream = ByteArrayOutputStream()
         bitmap.compress(format, quality, outputStream)
         while (outputStream.size() > maxBytes && quality > 10) {
-            outputStream = ByteArrayOutputStream()
+            outputStream.reset()
             quality -= 5
             bitmap.compress(format, quality, outputStream)
         }
-        val compressed = BitmapFactory.decodeByteArray(outputStream.toByteArray(), 0, outputStream.size())
-        val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+        outputStream.flush()
+        val bytes = outputStream.toByteArray()
+        outputStream.close()
+        val compressed = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         return Pair(compressed, base64)
     }
 

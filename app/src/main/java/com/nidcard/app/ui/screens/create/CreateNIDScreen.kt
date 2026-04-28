@@ -35,6 +35,9 @@ import androidx.navigation.NavController
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.ui.theme.*
 import com.nidcard.app.util.Base64Util
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +129,10 @@ fun CreateNIDScreen(
     }
 
     // Auto generate function
+    val scope = rememberCoroutineScope()
+
     fun autoGenerate() {
+        if (isGenerating) return
         isGenerating = true
         nameBn.value = "মোহাম্মদ ফাহাদ আহমেদ"
         nameEn.value = "Md. Fahad Ahamed"
@@ -141,23 +147,29 @@ fun CreateNIDScreen(
         gender.value = "male"
         errors.value = emptyMap()
 
-        // Auto-generate placeholder photo and signature
-        try {
-            val photoBmp = Base64Util.generatePlaceholderPhoto(300, 400)
-            photoBitmap.value = photoBmp
-            val (compressedPhoto, photoBase64Str) = Base64Util.compressBitmap(photoBmp)
-            photoBase64.value = photoBase64Str
-            photoType.value = "image/jpeg"
+        // Auto-generate placeholder photo and signature on background thread
+        scope.launch(Dispatchers.Default) {
+            try {
+                val photoBmp = Base64Util.generatePlaceholderPhoto(300, 400)
+                val (compressedPhoto, photoBase64Str) = Base64Util.compressBitmap(photoBmp)
+                val signBmp = Base64Util.generatePlaceholderSignature(300, 100)
+                val (compressedSign, signBase64Str) = Base64Util.compressBitmap(signBmp)
 
-            val signBmp = Base64Util.generatePlaceholderSignature(300, 100)
-            signBitmap.value = signBmp
-            val (compressedSign, signBase64Str) = Base64Util.compressBitmap(signBmp)
-            signBase64.value = signBase64Str
-            signType.value = "image/jpeg"
-        } catch (e: Exception) {
-            // Silent fail - user can still manually upload
+                withContext(Dispatchers.Main) {
+                    photoBitmap.value = compressedPhoto
+                    photoBase64.value = photoBase64Str
+                    photoType.value = "image/jpeg"
+                    signBitmap.value = compressedSign
+                    signBase64.value = signBase64Str
+                    signType.value = "image/jpeg"
+                    isGenerating = false
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isGenerating = false
+                }
+            }
         }
-        isGenerating = false
     }
 
     fun validateAndSave() {
@@ -443,15 +455,15 @@ fun CreateNIDScreen(
                                 labels = mapOf("male" to "পুরুষ", "female" to "মহিলা", "other" to "অন্যান্য")
                             )
                         }
-                        ModernOutlinedField(
-                            label = "জন্মস্থান *",
-                            value = birth,
-                            placeholder = "ঢাকা",
-                            error = errors.value["birth"],
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = Icons.Outlined.LocationOn
-                        )
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    ModernOutlinedField(
+                        label = "জন্মস্থান *",
+                        value = birth,
+                        placeholder = "ঢাকা",
+                        error = errors.value["birth"],
+                        leadingIcon = Icons.Outlined.LocationOn
+                    )
 
                     // --- Parent Info ---
                     Spacer(modifier = Modifier.height(20.dp))
@@ -713,9 +725,11 @@ internal fun ModernOutlinedField(
                 unfocusedBorderColor = if (error != null) GovRed else GovBorder,
                 cursorColor = GovGreen,
                 errorBorderColor = GovRed,
-                errorCursorColor = GovRed
+                errorCursorColor = GovRed,
+                focusedTextColor = GovText,
+                unfocusedTextColor = GovText
             ),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = GovText)
         )
         if (error != null) {
             Spacer(modifier = Modifier.height(2.dp))
@@ -752,9 +766,11 @@ internal fun ModernDropdownField(
             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = GovGreen,
-                unfocusedBorderColor = GovBorder
+                unfocusedBorderColor = GovBorder,
+                focusedTextColor = GovText,
+                unfocusedTextColor = GovText
             ),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = GovText)
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
