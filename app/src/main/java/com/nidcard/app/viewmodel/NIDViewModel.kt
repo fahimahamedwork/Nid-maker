@@ -91,7 +91,10 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
                     createdAt = sdfFull.format(Date()),
                     nameEn = card.nameEn.uppercase(Locale.getDefault())
                 )
-                repository.insert(cardToSave)
+                val insertedId = repository.insert(cardToSave)
+                // Set the selected card so ViewNIDScreen can display it
+                val savedCard = cardToSave.copy(id = insertedId)
+                _selectedCard.value = savedCard
                 _saveSuccess.value = true
                 refreshTodayCount()
             } catch (e: Exception) {

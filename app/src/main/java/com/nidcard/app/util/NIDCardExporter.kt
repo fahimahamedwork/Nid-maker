@@ -312,7 +312,7 @@ object NIDCardExporter {
             val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-            val fileName = "NID-$nid-${System.currentTimeMillis()}.png"
+            val fileName = "NID_${nid}_${System.currentTimeMillis()}.png"
 
             // Combine front and back into one image
             val combined = Bitmap.createBitmap(
@@ -347,7 +347,7 @@ object NIDCardExporter {
             val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-            val fileName = "NID-$nid-${System.currentTimeMillis()}.pdf"
+            val fileName = "NID_${nid}_${System.currentTimeMillis()}.pdf"
             val file = File(downloadsDir, fileName)
 
             val pdfDocument = PdfDocument()
