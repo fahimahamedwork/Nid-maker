@@ -185,8 +185,7 @@ fun SearchScreen(
                     NIDCardListItem(
                         card = card,
                         onClick = {
-                            viewModel.selectCard(card)
-                            navController.navigate("view_nid")
+                            navController.navigate("view_nid/${card.id}")
                         }
                     )
                 }

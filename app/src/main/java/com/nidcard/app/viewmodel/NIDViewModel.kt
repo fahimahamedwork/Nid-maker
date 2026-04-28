@@ -46,6 +46,9 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
     private val _saveSuccess = MutableStateFlow(false)
     val saveSuccess: StateFlow<Boolean> = _saveSuccess
 
+    private val _lastInsertedId = MutableStateFlow(0L)
+    val lastInsertedId: StateFlow<Long> = _lastInsertedId
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
@@ -61,6 +64,12 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectCard(card: NIDCard) {
         _selectedCard.value = card
+    }
+
+    fun loadCardById(id: Long) {
+        viewModelScope.launch {
+            _selectedCard.value = repository.getById(id)
+        }
     }
 
     fun clearSelectedCard() {
@@ -92,9 +101,9 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
                     nameEn = card.nameEn.uppercase(Locale.getDefault())
                 )
                 val insertedId = repository.insert(cardToSave)
-                // Set the selected card so ViewNIDScreen can display it
                 val savedCard = cardToSave.copy(id = insertedId)
                 _selectedCard.value = savedCard
+                _lastInsertedId.value = insertedId
                 _saveSuccess.value = true
                 refreshTodayCount()
             } catch (e: Exception) {

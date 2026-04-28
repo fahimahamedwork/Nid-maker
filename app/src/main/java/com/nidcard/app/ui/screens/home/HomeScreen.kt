@@ -210,8 +210,7 @@ fun HomeScreen(
                         searchQuery.value = TextFieldValue("")
                     },
                     onViewCard = { card ->
-                        viewModel.selectCard(card)
-                        navController.navigate("view_nid")
+                        navController.navigate("view_nid/${card.id}")
                     }
                 )
                 Spacer(modifier = Modifier.height(16.dp))

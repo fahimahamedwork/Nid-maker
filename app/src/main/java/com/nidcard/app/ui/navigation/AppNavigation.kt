@@ -25,8 +25,14 @@ fun AppNavigation() {
         composable("create_nid") {
             CreateNIDScreen(navController = navController)
         }
-        composable("view_nid") {
-            ViewNIDScreen(navController = navController)
+        composable(
+            route = "view_nid/{cardId}",
+            arguments = listOf(navArgument("cardId") { type = NavType.LongType })
+        ) {
+            val cardId = it.arguments?.getLong("cardId") ?: 0L
+            val viewModel: NIDViewModel = viewModel()
+            viewModel.loadCardById(cardId)
+            ViewNIDScreen(navController = navController, viewModel = viewModel)
         }
         composable("search") {
             SearchScreen(navController = navController)

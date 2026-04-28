@@ -530,11 +530,7 @@ private fun AdminPanelScreen(
                         isSelected = selectedIds.contains(card.id),
                         onSelect = { viewModel.toggleSelection(card.id) },
                         onView = {
-                            com.nidcard.app.viewmodel.NIDViewModel(navController.context as android.app.Application).let { vm ->
-                                vm.selectCard(card)
-                            }
-                            // Use the shared NIDViewModel from the nav graph
-                            navController.navigate("view_nid")
+                            navController.navigate("view_nid/${card.id}")
                         },
                         onDelete = { viewModel.deleteCard(card.nid) }
                     )

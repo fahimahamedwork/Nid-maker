@@ -46,6 +46,7 @@ fun CreateNIDScreen(
     val context = LocalContext.current
     val saveSuccess by viewModel.saveSuccess.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val lastInsertedId by viewModel.lastInsertedId.collectAsState()
 
     // Form fields
     val nameBn = remember { mutableStateOf("") }
@@ -263,10 +264,13 @@ fun CreateNIDScreen(
                 Button(
                     onClick = {
                         showSuccessDialog = false
+                        val insertedId = lastInsertedId
                         viewModel.clearSaveStatus()
-                        // Navigate to view the created card
-                        navController.navigate("view_nid") {
-                            popUpTo("home") { inclusive = true }
+                        // Navigate to view the created card using its database ID
+                        if (insertedId > 0) {
+                            navController.navigate("view_nid/$insertedId") {
+                                popUpTo("home") { inclusive = true }
+                            }
                         }
                     },
                     modifier = Modifier
