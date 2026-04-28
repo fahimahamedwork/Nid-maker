@@ -72,9 +72,13 @@ fun CreateNIDScreen(
             context.contentResolver.openInputStream(it)?.use { stream ->
                 val bytes = stream.readBytes()
                 val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                photoBitmap.value = bmp
-                photoBase64.value = Base64Util.encodeBytesToString(bytes)
-                photoType.value = context.contentResolver.getType(it) ?: "image/jpeg"
+                if (bmp != null) {
+                    // Compress to prevent OOM on large images
+                    val (compressed, base64Str) = com.nidcard.app.util.Base64Util.compressBitmap(bmp)
+                    photoBitmap.value = compressed
+                    photoBase64.value = base64Str
+                    photoType.value = context.contentResolver.getType(it) ?: "image/jpeg"
+                }
             }
         }
     }
@@ -86,9 +90,12 @@ fun CreateNIDScreen(
             context.contentResolver.openInputStream(it)?.use { stream ->
                 val bytes = stream.readBytes()
                 val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                signBitmap.value = bmp
-                signBase64.value = Base64Util.encodeBytesToString(bytes)
-                signType.value = context.contentResolver.getType(it) ?: "image/jpeg"
+                if (bmp != null) {
+                    val (compressed, base64Str) = com.nidcard.app.util.Base64Util.compressBitmap(bmp)
+                    signBitmap.value = compressed
+                    signBase64.value = base64Str
+                    signType.value = context.contentResolver.getType(it) ?: "image/jpeg"
+                }
             }
         }
     }
@@ -116,6 +123,23 @@ fun CreateNIDScreen(
         bloodGroup.value = "B+"
         address.value = "গ্রাম: কালিকাপুর, উপজেলা: নবাবগঞ্জ, জেলা: ঢাকা"
         errors.value = emptyMap()
+
+        // Auto-generate placeholder photo and signature
+        try {
+            val photoBmp = com.nidcard.app.util.Base64Util.generatePlaceholderPhoto()
+            photoBitmap.value = photoBmp
+            val (compressedPhoto, photoBase64Str) = com.nidcard.app.util.Base64Util.compressBitmap(photoBmp)
+            photoBase64.value = photoBase64Str
+            photoType.value = "image/jpeg"
+
+            val signBmp = com.nidcard.app.util.Base64Util.generatePlaceholderSignature()
+            signBitmap.value = signBmp
+            val (compressedSign, signBase64Str) = com.nidcard.app.util.Base64Util.compressBitmap(signBmp)
+            signBase64.value = signBase64Str
+            signType.value = "image/jpeg"
+        } catch (e: Exception) {
+            // Silent fail - user can still manually upload
+        }
     }
 
     fun validateAndSave() {

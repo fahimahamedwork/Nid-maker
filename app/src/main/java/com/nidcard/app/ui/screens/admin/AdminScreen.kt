@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.ui.theme.*
 import com.nidcard.app.util.Base64Util
@@ -738,6 +742,18 @@ private fun AdminNIDCard(
     onView: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    var photoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    // Load photo async to prevent OOM/crash on main thread
+    LaunchedEffect(card.id) {
+        if (card.photoBase64.isNotBlank()) {
+            withContext(Dispatchers.IO) {
+                photoBitmap = Base64Util.decodeToBitmapSampled(card.photoBase64, 200)
+            }
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -748,16 +764,13 @@ private fun AdminNIDCard(
             // Checkbox
             Checkbox(checked = isSelected, onCheckedChange = { onSelect() })
 
-            // Photo
-            if (card.photoBase64.isNotBlank()) {
-                val bitmap = remember(card.photoBase64) { Base64Util.decodeToBitmap(card.photoBase64) }
-                bitmap?.let {
-                    androidx.compose.foundation.Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
-                    )
-                }
+            // Photo thumbnail
+            if (photoBitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = photoBitmap!!.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
+                )
             } else {
                 Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = Color(0xFFE9ECEF)) {
                     Box(contentAlignment = Alignment.Center) {
@@ -769,8 +782,8 @@ private fun AdminNIDCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(card.nameBn, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-                Text(card.nameEn, fontSize = 12.sp, color = GovTextLight, maxLines = 1)
+                Text(card.nameBn, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(card.nameEn, fontSize = 12.sp, color = GovTextLight, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 Row {
                     Text("NID: ${card.nid}", fontSize = 11.sp, color = GovTextLight)

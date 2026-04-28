@@ -20,6 +20,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +108,17 @@ fun SearchScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NIDCardListItem(card: NIDCard, onClick: () -> Unit) {
+    var photoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    // Load photo async to prevent OOM/crash on main thread
+    LaunchedEffect(card.id) {
+        if (card.photoBase64.isNotBlank()) {
+            withContext(Dispatchers.IO) {
+                photoBitmap = com.nidcard.app.util.Base64Util.decodeToBitmapSampled(card.photoBase64, 200)
+            }
+        }
+    }
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -114,17 +128,12 @@ private fun NIDCardListItem(card: NIDCard, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             // Photo or placeholder
-            if (card.photoBase64.isNotBlank()) {
-                val bitmap = remember(card.photoBase64) {
-                    com.nidcard.app.util.Base64Util.decodeToBitmap(card.photoBase64)
-                }
-                bitmap?.let {
-                    androidx.compose.foundation.Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(12.dp))
-                    )
-                }
+            if (photoBitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = photoBitmap!!.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(12.dp))
+                )
             } else {
                 Surface(
                     modifier = Modifier.size(52.dp),

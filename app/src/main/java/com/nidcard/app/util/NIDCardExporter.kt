@@ -308,10 +308,8 @@ object NIDCardExporter {
         nid: String
     ): File? {
         return try {
-            val downloadsDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "NIDCards"
-            )
+            // Use app-specific external directory (no permission needed on Android 10+)
+            val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
             val fileName = "NID-$nid-${System.currentTimeMillis()}.png"
@@ -345,10 +343,8 @@ object NIDCardExporter {
         nid: String
     ): File? {
         return try {
-            val downloadsDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "NIDCards"
-            )
+            // Use app-specific external directory (no permission needed on Android 10+)
+            val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
             val fileName = "NID-$nid-${System.currentTimeMillis()}.pdf"
