@@ -1,8 +1,8 @@
 package com.nidcard.app.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nidcard.app.NIDCardApp
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.data.repository.NIDCardRepository
 import kotlinx.coroutines.flow.*
@@ -10,11 +10,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-class NIDViewModel(application: Application) : AndroidViewModel(application) {
+class NIDViewModel : ViewModel() {
 
-    private val repository = NIDCardRepository(
-        com.nidcard.app.data.database.AppDatabase.getDatabase(application).nidCardDao()
-    )
+    private val repository = NIDCardRepository(NIDCardApp.getDao())
 
     private val _allCards = repository.getAllCards()
     val allCards: StateFlow<List<NIDCard>> = _allCards.stateIn(
@@ -29,7 +27,7 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
     private val _todayCount = MutableStateFlow(0)
     val todayCount: StateFlow<Int> = _todayCount
 
-    // Search with debounce built into the Flow (H4 fix)
+    // Search with debounce built into the Flow
     private val _searchQuery = MutableStateFlow("")
     val searchResults: StateFlow<List<NIDCard>> = _searchQuery
         .debounce(500)
@@ -121,7 +119,7 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
             _isSaving.value = true
             _errorMessage.value = null
             try {
-                // Check for duplicate NID before insert (C2 fix)
+                // Check for duplicate NID before insert
                 val existing = repository.getByNid(card.nid)
                 if (existing != null) {
                     _errorMessage.value = "এই NID নম্বরটি ইতিমধ্যে ব্যবহৃত হয়েছে! অনুগ্রহ করে ভিন্ন NID নম্বর দিন।"
@@ -213,7 +211,7 @@ class NIDViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Backup / Export (F2 feature) ---
+    // --- Backup / Export ---
     fun exportAllCardsAsJson(): String? {
         return try {
             val cards = kotlinx.coroutines.runBlocking { repository.getAllCardsList() }

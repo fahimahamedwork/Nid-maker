@@ -2,6 +2,7 @@ package com.nidcard.app.data.repository
 
 import com.nidcard.app.data.dao.NIDCardDao
 import com.nidcard.app.data.entity.NIDCard
+import com.nidcard.app.data.entity.NIDCardSummary
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
@@ -29,6 +30,11 @@ class NIDCardRepository(private val dao: NIDCardDao) {
     fun getAllCards(): Flow<List<NIDCard>> = dao.getAllCards()
 
     suspend fun getAllCardsList(): List<NIDCard> = dao.getAllCardsList()
+
+    // Lightweight summaries (excludes base64 images)
+    fun getAllCardSummaries(): Flow<List<NIDCardSummary>> = dao.getAllCardSummaries()
+
+    fun searchCardSummaries(query: String): Flow<List<NIDCardSummary>> = dao.searchCardSummaries(query)
 
     fun getTotalCount(): Flow<Int> = dao.getTotalCount()
 

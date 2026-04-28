@@ -1,8 +1,8 @@
 package com.nidcard.app.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nidcard.app.NIDCardApp
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.data.repository.NIDCardRepository
 import kotlinx.coroutines.Job
@@ -10,13 +10,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 
-class AdminViewModel(application: Application) : AndroidViewModel(application) {
+class AdminViewModel : ViewModel() {
 
-    private val prefs = application.getSharedPreferences("nid_admin_prefs", android.content.Context.MODE_PRIVATE)
+    private val prefs = NIDCardApp.getPrefs()
 
-    private val repository = NIDCardRepository(
-        com.nidcard.app.data.database.AppDatabase.getDatabase(application).nidCardDao()
-    )
+    private val repository = NIDCardRepository(NIDCardApp.getDao())
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
@@ -26,7 +24,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _resetCode = "32423"
 
-    // searchResults serves both search and full listing — no need for _allCards (H5 fix)
+    // searchResults serves both search and full listing
     private val _searchQuery = MutableStateFlow("")
     val searchResults: StateFlow<List<NIDCard>> = _searchQuery
         .flatMapLatest { query ->
@@ -81,7 +79,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingAutoDelete = MutableStateFlow(false)
     val pendingAutoDelete: StateFlow<Boolean> = _pendingAutoDelete
 
-    // Ticker job for proper cancellation (H6 fix)
+    // Ticker job for proper cancellation
     private var tickerJob: Job? = null
 
     init {
@@ -105,7 +103,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Timer countdown ticker (H6 fix: only active when timer is on) ---
+    // --- Timer countdown ticker (only active when timer is on) ---
     private fun startOrStopTicker() {
         if (_timerActive.value) {
             if (tickerJob?.isActive != true) {
@@ -147,7 +145,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Sets flag instead of silently deleting (C2 safety fix)
+    // Sets flag instead of silently deleting (safety fix)
     private fun checkTimerOnStart() {
         if (_timerActive.value && _targetDeleteTime.value > 0L) {
             if (System.currentTimeMillis() >= _targetDeleteTime.value) {
