@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -43,7 +42,6 @@ fun HomeScreen(
     val searchQuery = remember { mutableStateOf(TextFieldValue("")) }
     val searchResult by viewModel.quickSearchResult.collectAsState()
     var showSearchResult by remember { mutableStateOf(false) }
-    var showNidField by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(GovBg)) {
         // Government Header Banner
@@ -358,7 +356,7 @@ fun HomeScreen(
                 Divider(color = GovDivider, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "© 2026 নির্বাচন কমিশন বাংলাদেশ",
+                    "© 2025 নির্বাচন কমিশন বাংলাদেশ",
                     fontSize = 11.sp,
                     color = GovTextMuted
                 )

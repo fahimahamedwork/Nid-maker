@@ -46,7 +46,7 @@ object Base64Util {
      * Compress bitmap to JPEG with max size limit (in bytes).
      * Returns the compressed bitmap and base64 string.
      */
-    fun compressBitmap(bitmap: Bitmap, maxBytes: Int = 512 * 1024, format: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG): Pair<Bitmap, String> {
+    fun compressBitmap(bitmap: Bitmap, maxBytes: Int = 512 * 1024, format: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG): Pair<Bitmap?, String> {
         var quality = 85
         var outputStream = ByteArrayOutputStream()
         bitmap.compress(format, quality, outputStream)

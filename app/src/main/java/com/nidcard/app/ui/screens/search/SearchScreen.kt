@@ -44,9 +44,13 @@ fun SearchScreen(
         if (searchQuery.value.isNotBlank()) {
             isSearching = true
             viewModel.setSearchQuery(searchQuery.value)
-            kotlinx.coroutines.delay(500)
+        } else {
             isSearching = false
         }
+    }
+
+    LaunchedEffect(searchResults) {
+        isSearching = false
     }
 
     Column(modifier = Modifier.fillMaxSize().background(GovBg)) {
@@ -226,7 +230,7 @@ private fun NIDCardListItem(card: NIDCard, onClick: () -> Unit) {
             // Photo or placeholder
             if (photoBitmap != null) {
                 androidx.compose.foundation.Image(
-                    bitmap = photoBitmap!!.asImageBitmap(),
+                    bitmap = photoBitmap.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier
                         .size(52.dp)

@@ -5,8 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.data.repository.NIDCardRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
 
 class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -24,9 +26,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _resetCode = "32423"
 
-    private val _allCards = MutableStateFlow<List<NIDCard>>(emptyList())
-    val allCards: StateFlow<List<NIDCard>> = _allCards
-
+    // searchResults serves both search and full listing — no need for _allCards (H5 fix)
     private val _searchQuery = MutableStateFlow("")
     val searchResults: StateFlow<List<NIDCard>> = _searchQuery
         .flatMapLatest { query ->
@@ -44,13 +44,13 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _resetSuccess = MutableStateFlow(false)
     val resetSuccess: StateFlow<Boolean> = _resetSuccess
 
-    // --- Admin password persistence (Bug 2) ---
-    private val _adminPassword = MutableStateFlow(
-        prefs.getString("admin_password", "fahad") ?: "fahad"
+    // --- Admin password persistence (SHA-256 + salt) ---
+    private val _adminPasswordHash = MutableStateFlow(
+        prefs.getString("admin_password_hash", null) ?: hashPassword("fahad")
     )
-    val adminPassword: StateFlow<String> = _adminPassword
+    val adminPasswordHash: StateFlow<String> = _adminPasswordHash
 
-    // --- Auto-delete timer (Bug 4) ---
+    // --- Auto-delete timer ---
     private val _timerActive = MutableStateFlow(
         prefs.getBoolean("timer_active", false)
     )
@@ -77,27 +77,48 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
     private val _timerExpired = MutableStateFlow(false)
     val timerExpired: StateFlow<Boolean> = _timerExpired
 
+    // Flag to signal UI to show confirmation before deleting
+    private val _pendingAutoDelete = MutableStateFlow(false)
+    val pendingAutoDelete: StateFlow<Boolean> = _pendingAutoDelete
+
+    // Ticker job for proper cancellation (H6 fix)
+    private var tickerJob: Job? = null
+
     init {
-        loadAllCards()
+        // Save hashed password on first init
+        if (prefs.getString("admin_password_hash", null) == null) {
+            prefs.edit().putString("admin_password_hash", _adminPasswordHash.value).apply()
+        }
         checkTimerOnStart()
-        startCountdownTicker()
+        startOrStopTicker()
     }
 
-    fun loadAllCards() {
-        viewModelScope.launch {
-            repository.getAllCards().collect { cards ->
-                _allCards.value = cards
-            }
+    // --- SHA-256 password hashing ---
+    companion object {
+        private const val HASH_SALT = "NID_MAKER_SECURE_SALT_2024"
+
+        fun hashPassword(password: String): String {
+            val salted = password + HASH_SALT
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(salted.toByteArray(Charsets.UTF_8))
+            return hashBytes.joinToString("") { "%02x".format(it) }
         }
     }
 
-    // --- Timer countdown ticker ---
-    private fun startCountdownTicker() {
-        viewModelScope.launch {
-            while (true) {
-                updateCountdownText()
-                kotlinx.coroutines.delay(1000L)
+    // --- Timer countdown ticker (H6 fix: only active when timer is on) ---
+    private fun startOrStopTicker() {
+        if (_timerActive.value) {
+            if (tickerJob?.isActive != true) {
+                tickerJob = viewModelScope.launch {
+                    while (true) {
+                        updateCountdownText()
+                        kotlinx.coroutines.delay(1000L)
+                    }
+                }
             }
+        } else {
+            tickerJob?.cancel()
+            tickerJob = null
         }
     }
 
@@ -126,17 +147,32 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Sets flag instead of silently deleting (C2 safety fix)
     private fun checkTimerOnStart() {
         if (_timerActive.value && _targetDeleteTime.value > 0L) {
             if (System.currentTimeMillis() >= _targetDeleteTime.value) {
-                // Timer expired while app was closed — auto-delete
-                viewModelScope.launch {
-                    repository.deleteAll()
-                    clearTimer()
-                    _deleteMessage.value = "টাইমার মেয়াদ উত্তীর্ণ হয়েছে — সব NID ডাটা অটো-ডিলিট হয়েছে"
-                }
+                _timerExpired.value = true
+                _pendingAutoDelete.value = true
             }
         }
+    }
+
+    fun confirmPendingAutoDelete() {
+        _pendingAutoDelete.value = false
+        viewModelScope.launch {
+            try {
+                repository.deleteAll()
+                clearTimer()
+                _deleteMessage.value = "টাইমার মেয়াদ উত্তীর্ণ হয়েছে — সব NID ডাটা অটো-ডিলিট হয়েছে"
+            } catch (e: Exception) {
+                _deleteMessage.value = "ডিলিট করতে সমস্যা: ${e.message}"
+            }
+        }
+    }
+
+    fun dismissPendingAutoDelete() {
+        _pendingAutoDelete.value = false
+        clearTimer()
     }
 
     fun setTimer(type: String, value: Int) {
@@ -144,7 +180,7 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
         val target = when (type) {
             "hours" -> now + (value * 3600 * 1000L)
             "days" -> now + (value * 86400 * 1000L)
-            "date" -> value * 1000L // value is epoch seconds for the specific date
+            "date" -> value * 1000L
             else -> now + (value * 3600 * 1000L)
         }
         _timerType.value = type
@@ -159,6 +195,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             .putInt("timer_value", value)
             .putLong("target_delete_time", target)
             .apply()
+
+        startOrStopTicker()
     }
 
     fun setTimerByDate(epochMillis: Long) {
@@ -174,6 +212,8 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             .putInt("timer_value", 0)
             .putLong("target_delete_time", epochMillis)
             .apply()
+
+        startOrStopTicker()
     }
 
     fun clearTimer() {
@@ -190,11 +230,14 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             .putInt("timer_value", 24)
             .putLong("target_delete_time", 0L)
             .apply()
+
+        startOrStopTicker()
     }
 
-    // --- Login / Password ---
+    // --- Login / Password (SHA-256 hash comparison) ---
     fun login(password: String) {
-        if (password == _adminPassword.value) {
+        val inputHash = hashPassword(password)
+        if (inputHash == _adminPasswordHash.value) {
             _isLoggedIn.value = true
             _loginError.value = null
         } else {
@@ -212,8 +255,10 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
             newPassword.length < 3 -> _loginError.value = "পাসওয়ার্ড কমপক্ষে ৩ অক্ষরের হতে হবে!"
             newPassword != confirmPassword -> _loginError.value = "পাসওয়ার্ড মিলছে না!"
             else -> {
-                _adminPassword.value = newPassword
-                prefs.edit().putString("admin_password", newPassword).apply()
+                val newHash = hashPassword(newPassword)
+                _adminPasswordHash.value = newHash
+                prefs.edit().putString("admin_password_hash", newHash).apply()
+                prefs.edit().remove("admin_password").apply()
                 _resetSuccess.value = true
                 _loginError.value = null
             }
@@ -230,23 +275,35 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCard(nid: String) {
         viewModelScope.launch {
-            repository.deleteByNid(nid)
-            _deleteMessage.value = "NID $nid ডিলিট হয়েছে"
+            try {
+                repository.deleteByNid(nid)
+                _deleteMessage.value = "NID $nid ডিলিট হয়েছে"
+            } catch (e: Exception) {
+                _deleteMessage.value = "ডিলিট করতে সমস্যা: ${e.message}"
+            }
         }
     }
 
     fun deleteAll() {
         viewModelScope.launch {
-            repository.deleteAll()
-            _deleteMessage.value = "সব NID ডাটা ডিলিট হয়েছে"
+            try {
+                repository.deleteAll()
+                _deleteMessage.value = "সব NID ডাটা ডিলিট হয়েছে"
+            } catch (e: Exception) {
+                _deleteMessage.value = "ডিলিট করতে সমস্যা: ${e.message}"
+            }
         }
     }
 
     fun deleteSelected() {
         viewModelScope.launch {
-            repository.deleteByIds(_selectedIds.value.toList())
-            _deleteMessage.value = "${_selectedIds.value.size}টি NID ডাটা ডিলিট হয়েছে"
-            _selectedIds.value = emptySet()
+            try {
+                repository.deleteByIds(_selectedIds.value.toList())
+                _deleteMessage.value = "${_selectedIds.value.size}টি NID ডাটা ডিলিট হয়েছে"
+                _selectedIds.value = emptySet()
+            } catch (e: Exception) {
+                _deleteMessage.value = "ডিলিট করতে সমস্যা: ${e.message}"
+            }
         }
     }
 
@@ -270,5 +327,43 @@ class AdminViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    // --- Backup / Import ---
+    fun exportAllCardsAsJson(): String? {
+        return try {
+            val cards = kotlinx.coroutines.runBlocking { repository.getAllCardsList() }
+            val gson = com.google.gson.Gson()
+            gson.toJson(cards)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun importCardsFromJson(json: String): Int {
+        return try {
+            val gson = com.google.gson.Gson()
+            val type = object : com.google.gson.reflect.TypeToken<List<NIDCard>>() {}.type
+            val cards: List<NIDCard> = gson.fromJson(json, type)
+            var imported = 0
+            kotlinx.coroutines.runBlocking {
+                for (card in cards) {
+                    try {
+                        repository.insert(card)
+                        imported++
+                    } catch (_: Exception) {
+                        // Skip duplicates
+                    }
+                }
+            }
+            imported
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        tickerJob?.cancel()
     }
 }

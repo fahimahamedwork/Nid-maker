@@ -4,7 +4,6 @@ import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -38,17 +37,18 @@ import com.nidcard.app.util.Base64Util
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateNIDScreen(
+fun EditNIDScreen(
     navController: NavController,
     viewModel: com.nidcard.app.viewmodel.NIDViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
+    val updateSuccess by viewModel.updateSuccess.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val lastInsertedId by viewModel.lastInsertedId.collectAsState()
+    val selectedCard by viewModel.selectedCard.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    var showSuccessDialog by remember { mutableStateOf(false) }
 
-    // Form fields
+    // Form fields - pre-populate from existing card
     val nameBn = remember { mutableStateOf("") }
     val nameEn = remember { mutableStateOf("") }
     val nid = remember { mutableStateOf("") }
@@ -71,9 +71,53 @@ fun CreateNIDScreen(
 
     // UI states
     val errors = remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var isGenerating by remember { mutableStateOf(false) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
-    val createdNid = remember { mutableStateOf("") }
+    var cardId by remember { mutableStateOf(0L) }
+    val issueDate = remember { mutableStateOf("") }
+    val createdAt = remember { mutableStateOf("") }
+
+    // Populate fields when card loads
+    LaunchedEffect(selectedCard) {
+        selectedCard?.let { card ->
+            cardId = card.id
+            nameBn.value = card.nameBn
+            nameEn.value = card.nameEn
+            nid.value = card.nid
+            pin.value = card.pin
+            father.value = card.father
+            mother.value = card.mother
+            birth.value = card.birth
+            dob.value = card.dob
+            bloodGroup.value = card.blood
+            address.value = card.address
+            gender.value = card.gender
+            photoBase64.value = card.photoBase64
+            photoType.value = card.photoType
+            signBase64.value = card.signBase64
+            signType.value = card.signType
+            issueDate.value = card.issueDate
+            createdAt.value = card.createdAt
+            errors.value = emptyMap()
+
+            // Decode images for display
+            if (card.photoBase64.isNotBlank()) {
+                try {
+                    photoBitmap.value = Base64Util.decodeToBitmapSampled(card.photoBase64, 300)
+                } catch (_: Exception) { }
+            }
+            if (card.signBase64.isNotBlank()) {
+                try {
+                    signBitmap.value = Base64Util.decodeToBitmapSampled(card.signBase64, 300)
+                } catch (_: Exception) { }
+            }
+        }
+    }
+
+    // Show success dialog
+    LaunchedEffect(updateSuccess) {
+        if (updateSuccess) {
+            showSuccessDialog = true
+        }
+    }
 
     // Image pickers
     val photoPicker = rememberLauncherForActivityResult(
@@ -91,9 +135,7 @@ fun CreateNIDScreen(
                         photoType.value = context.contentResolver.getType(it) ?: "image/jpeg"
                     }
                 }
-            } catch (e: Exception) {
-                // Handle error silently
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -112,55 +154,12 @@ fun CreateNIDScreen(
                         signType.value = context.contentResolver.getType(it) ?: "image/jpeg"
                     }
                 }
-            } catch (e: Exception) {
-                // Handle error silently
-            }
+            } catch (_: Exception) { }
         }
     }
 
-    // Navigate after save to ViewNIDScreen
-    LaunchedEffect(saveSuccess) {
-        if (saveSuccess) {
-            showSuccessDialog = true
-        }
-    }
-
-    // Auto generate function
-    fun autoGenerate() {
-        isGenerating = true
-        nameBn.value = "মোহাম্মদ ফাহাদ আহমেদ"
-        nameEn.value = "Md. Fahad Ahamed"
-        nid.value = "8252184567890"
-        pin.value = "1234567890"
-        father.value = "মোঃ আবদুল হাই"
-        mother.value = "মোসাঃ রাবেয়া খাতুন"
-        birth.value = "ঢাকা"
-        dob.value = "05 Nov 2005"
-        bloodGroup.value = "B+"
-        address.value = "গ্রাম: কালিকাপুর, উপজেলা: নবাবগঞ্জ, জেলা: ঢাকা"
-        gender.value = "male"
-        errors.value = emptyMap()
-
-        // Auto-generate placeholder photo and signature
-        try {
-            val photoBmp = Base64Util.generatePlaceholderPhoto(300, 400)
-            photoBitmap.value = photoBmp
-            val (compressedPhoto, photoBase64Str) = Base64Util.compressBitmap(photoBmp)
-            photoBase64.value = photoBase64Str
-            photoType.value = "image/jpeg"
-
-            val signBmp = Base64Util.generatePlaceholderSignature(300, 100)
-            signBitmap.value = signBmp
-            val (compressedSign, signBase64Str) = Base64Util.compressBitmap(signBmp)
-            signBase64.value = signBase64Str
-            signType.value = "image/jpeg"
-        } catch (e: Exception) {
-            // Silent fail - user can still manually upload
-        }
-        isGenerating = false
-    }
-
-    fun validateAndSave() {
+    // Validation and update
+    fun validateAndUpdate() {
         val newErrors = mutableMapOf<String, String>()
         if (nameBn.value.isBlank()) newErrors["nameBn"] = "এই ঘরটি পূরণ করা আবশ্যক"
         if (nameEn.value.isBlank()) newErrors["nameEn"] = "This field is required"
@@ -183,8 +182,8 @@ fun CreateNIDScreen(
             return
         }
 
-        createdNid.value = nid.value
         val card = NIDCard(
+            id = cardId,
             nameBn = nameBn.value,
             nameEn = nameEn.value,
             nid = nid.value,
@@ -196,12 +195,14 @@ fun CreateNIDScreen(
             blood = bloodGroup.value,
             address = address.value,
             gender = gender.value,
+            issueDate = issueDate.value,
+            createdAt = createdAt.value,
             photoBase64 = photoBase64.value,
             photoType = photoType.value,
             signBase64 = signBase64.value,
             signType = signType.value
         )
-        viewModel.saveCard(card)
+        viewModel.updateCard(card)
     }
 
     // Success dialog
@@ -210,8 +211,8 @@ fun CreateNIDScreen(
             onDismissRequest = {
                 showSuccessDialog = false
                 viewModel.clearSaveStatus()
-                navController.navigate("home") {
-                    popUpTo("home") { inclusive = true }
+                navController.navigate(com.nidcard.app.ui.navigation.ScreenRoutes.viewNid(cardId)) {
+                    popUpTo(com.nidcard.app.ui.navigation.ScreenRoutes.HOME) { inclusive = true }
                 }
             },
             containerColor = Color.White,
@@ -232,30 +233,10 @@ fun CreateNIDScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "NID কার্ড সফলভাবে তৈরি হয়েছে!",
+                        "NID কার্ড আপডেট হয়েছে!",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = GovText,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "NID: ${createdNid.value}",
-                        fontSize = 14.sp,
-                        color = GovTextSecondary,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "আপনি এখন কার্ডটি ডাউনলোড করতে পারবেন",
-                        fontSize = 13.sp,
-                        color = GovTextLight,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -264,24 +245,18 @@ fun CreateNIDScreen(
                 Button(
                     onClick = {
                         showSuccessDialog = false
-                        val insertedId = lastInsertedId
                         viewModel.clearSaveStatus()
-                        // Navigate to view the created card using its database ID
-                        if (insertedId > 0) {
-                            navController.navigate("view_nid/$insertedId") {
-                                popUpTo("home") { inclusive = true }
-                            }
+                        navController.navigate(com.nidcard.app.ui.navigation.ScreenRoutes.viewNid(cardId)) {
+                            popUpTo(com.nidcard.app.ui.navigation.ScreenRoutes.HOME) { inclusive = true }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = GovGreen),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(Icons.Default.Visibility, null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("কার্ড দেখুন ও ডাউনলোড করুন", fontWeight = FontWeight.Bold)
+                    Text("কার্ড দেখুন", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -289,8 +264,8 @@ fun CreateNIDScreen(
                     onClick = {
                         showSuccessDialog = false
                         viewModel.clearSaveStatus()
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = true }
+                        navController.navigate(com.nidcard.app.ui.navigation.ScreenRoutes.HOME) {
+                            popUpTo(com.nidcard.app.ui.navigation.ScreenRoutes.HOME) { inclusive = true }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -301,6 +276,16 @@ fun CreateNIDScreen(
                 }
             }
         )
+    }
+
+    if (selectedCard == null) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(GovBg),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = GovGreen, strokeWidth = 3.dp)
+        }
+        return
     }
 
     Column(modifier = Modifier.fillMaxSize().background(GovBg)) {
@@ -323,8 +308,8 @@ fun CreateNIDScreen(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("NID কার্ড তৈরি করুন", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
-                        Text("সকল তথ্য পূরণ করুন", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+                        Text("NID কার্ড সম্পাদনা", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+                        Text("তথ্য পরিবর্তন করুন", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
                     }
                 }
             }
@@ -336,18 +321,6 @@ fun CreateNIDScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
-            // Progress indicator
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                ProgressStep(1, "তথ্য", true)
-                ProgressDivider(true)
-                ProgressStep(2, "ঠিকানা", true)
-                ProgressDivider(true)
-                ProgressStep(3, "আপলোড", true)
-            }
-
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -363,7 +336,6 @@ fun CreateNIDScreen(
                         subtitle = "Personal Information"
                     )
 
-                    // Name fields
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ModernOutlinedField(
                             label = "নাম (বাংলা) *",
@@ -384,7 +356,6 @@ fun CreateNIDScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // NID, PIN, DOB
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ModernOutlinedField(
                             label = "NID নম্বর *",
@@ -418,7 +389,6 @@ fun CreateNIDScreen(
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Blood group, Gender, Birth place
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
                             ModernLabel("রক্তের গ্রুপ *", Icons.Outlined.Bloodtype)
@@ -504,26 +474,24 @@ fun CreateNIDScreen(
                         subtitle = "Photo & Signature"
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Photo upload
                         Column(modifier = Modifier.weight(1f)) {
                             ModernLabel("ছবি (পাসপোর্ট সাইজ) *", Icons.Outlined.CameraAlt)
                             Spacer(modifier = Modifier.height(4.dp))
                             ModernUploadZone(
                                 icon = Icons.Outlined.CameraAlt,
-                                label = "ছবি নির্বাচন",
+                                label = "ছবি পরিবর্তন",
                                 subtitle = "JPG/PNG, সর্বোচ্চ 5MB",
                                 onClick = { photoPicker.launch("image/*") },
                                 bitmap = photoBitmap.value,
                                 error = errors.value["photo"]
                             )
                         }
-                        // Signature upload
                         Column(modifier = Modifier.weight(1f)) {
                             ModernLabel("স্বাক্ষর *", Icons.Outlined.Draw)
                             Spacer(modifier = Modifier.height(4.dp))
                             ModernUploadZone(
                                 icon = Icons.Outlined.Draw,
-                                label = "স্বাক্ষর নির্বাচন",
+                                label = "স্বাক্ষর পরিবর্তন",
                                 subtitle = "JPG/PNG, সর্বোচ্চ 2MB",
                                 onClick = { signPicker.launch("image/*") },
                                 bitmap = signBitmap.value,
@@ -553,34 +521,13 @@ fun CreateNIDScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    // Auto generate button
-                    OutlinedButton(
-                        onClick = { autoGenerate() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(2.dp, GovPurple),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = GovPurple)
-                    ) {
-                        Icon(
-                            if (isGenerating) Icons.Default.Autorenew else Icons.Default.AutoFixHigh,
-                            null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Auto Generate — সব তথ্য অটো পূরণ", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Submit button
+                    // Update button
                     Button(
-                        onClick = { validateAndSave() },
+                        onClick = { validateAndUpdate() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GovGreen),
+                        colors = ButtonDefaults.buttonColors(containerColor = GovBlue),
                         shape = RoundedCornerShape(14.dp),
                         enabled = !isSaving
                     ) {
@@ -591,11 +538,11 @@ fun CreateNIDScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("সংরক্ষণ হচ্ছে...", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("আপডেট হচ্ছে...", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         } else {
-                            Icon(Icons.Default.Shield, null, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("NID কার্ড তৈরি করুন", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("আপডেট করুন", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
 
@@ -604,232 +551,6 @@ fun CreateNIDScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-}
-
-// --- Modern Composable Components ---
-
-@Composable
-private fun ProgressStep(step: Int, label: String, completed: Boolean) {
-    Surface(
-        modifier = Modifier.size(36.dp),
-        shape = CircleShape,
-        color = if (completed) GovGreen else GovBorder
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (completed) {
-                Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
-            } else {
-                Text(step.toString(), fontWeight = FontWeight.Bold, color = GovTextLight, fontSize = 14.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.ProgressDivider(completed: Boolean) {
-    Divider(
-        modifier = Modifier
-            .weight(1f)
-            .padding(vertical = 12.dp),
-        color = if (completed) GovGreen else GovBorder,
-        thickness = 2.dp
-    )
-}
-
-@Composable
-private fun SectionHeader(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Surface(
-            modifier = Modifier.size(36.dp),
-            shape = RoundedCornerShape(10.dp),
-            color = GovGreenPastel
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(icon, null, modifier = Modifier.size(20.dp), tint = GovGreen)
-            }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GovText)
-            Text(subtitle, fontSize = 11.sp, color = GovTextLight)
-        }
-    }
-    Spacer(modifier = Modifier.height(14.dp))
-}
-
-@Composable
-private fun ModernLabel(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, modifier = Modifier.size(14.dp), tint = GovTextLight)
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GovTextSecondary)
-    }
-}
-
-@Composable
-private fun ModernOutlinedField(
-    label: String,
-    value: MutableState<String>,
-    placeholder: String = "",
-    error: String? = null,
-    modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    maxLength: Int? = null,
-    singleLine: Boolean = true,
-    minLines: Int = 1,
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
-) {
-    Column(modifier = modifier) {
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GovTextSecondary)
-        Spacer(modifier = Modifier.height(4.dp))
-        OutlinedTextField(
-            value = value.value,
-            onValueChange = {
-                if (maxLength == null || it.length <= maxLength) value.value = it
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(placeholder, fontSize = 13.sp, color = GovTextMuted) },
-            leadingIcon = if (leadingIcon != null) {
-                { Icon(leadingIcon, null, modifier = Modifier.size(18.dp), tint = GovTextLight) }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            singleLine = singleLine,
-            minLines = minLines,
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = GovGreen,
-                unfocusedBorderColor = if (error != null) GovRed else GovBorder,
-                cursorColor = GovGreen,
-                errorBorderColor = GovRed,
-                errorCursorColor = GovRed
-            ),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
-        )
-        if (error != null) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Error, null, tint = GovRed, modifier = Modifier.size(12.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(error, color = GovRed, fontSize = 11.sp)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ModernDropdownField(
-    options: List<String>,
-    selected: MutableState<String>,
-    placeholder: String,
-    labels: Map<String, String> = emptyMap()
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = labels[selected.value] ?: selected.value,
-            onValueChange = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true },
-            placeholder = { Text(placeholder, fontSize = 13.sp, color = GovTextMuted) },
-            readOnly = true,
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
-            shape = RoundedCornerShape(12.dp),
-            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = GovGreen,
-                unfocusedBorderColor = GovBorder
-            ),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(labels[option] ?: option, fontSize = 14.sp) },
-                    onClick = {
-                        selected.value = option
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModernUploadZone(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    bitmap: android.graphics.Bitmap?,
-    error: String?
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp)
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        color = if (error != null) ErrorBg else Color(0xFFF8FAFC),
-        border = if (error != null) BorderStroke(2.dp, GovRed) else BorderStroke(1.5.dp, GovBorder)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(16.dp))
-                .clickable { onClick() }
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (bitmap != null) {
-                androidx.compose.foundation.Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(90.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(2.dp, GovGreen, RoundedCornerShape(12.dp))
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("পরিবর্তন করতে ক্লিক করুন", fontSize = 10.sp, color = GovGreen, fontWeight = FontWeight.Medium)
-            } else {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = GovGreenPastel
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, null, modifier = Modifier.size(24.dp), tint = GovGreen)
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = GovText)
-                Text(subtitle, fontSize = 11.sp, color = GovTextLight)
-            }
-        }
-    }
-    if (error != null) {
-        Spacer(modifier = Modifier.height(2.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-            Icon(Icons.Default.Error, null, tint = GovRed, modifier = Modifier.size(12.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(error, color = GovRed, fontSize = 11.sp)
         }
     }
 }

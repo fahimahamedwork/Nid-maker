@@ -1,9 +1,15 @@
 package com.nidcard.app.ui.screens.admin
 
 import androidx.compose.animation.*
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import java.io.InputStream
+
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +40,8 @@ import kotlinx.coroutines.withContext
 import com.nidcard.app.data.entity.NIDCard
 import com.nidcard.app.ui.theme.*
 import com.nidcard.app.util.Base64Util
+
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AdminScreen(
@@ -146,7 +154,7 @@ private fun AdminLoginScreen(
                         onValueChange = { password.value = it },
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         placeholder = { Text("পাসওয়ার্ড দিন...", fontSize = 14.sp) },
-                        visualTransformation = if (passwordVisible) PasswordVisualTransformation() else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         leadingIcon = { Icon(Icons.Default.Key, null, modifier = Modifier.size(20.dp), tint = GovTextLight) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -268,6 +276,8 @@ private fun AdminPanelScreen(
     val selectedIds by viewModel.selectedIds.collectAsState()
     val searchQuery = remember { mutableStateOf(TextFieldValue("")) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showDeleteCardDialog by remember { mutableStateOf(false) }
+    var cardToDelete by remember { mutableStateOf<NIDCard?>(null) }
 
     // Timer state
     val timerActive by viewModel.timerActive.collectAsState()
@@ -279,10 +289,48 @@ private fun AdminPanelScreen(
     var timerDateMillis by remember { mutableStateOf(0L) }
     var showDatePicker by remember { mutableStateOf(false) }
 
+    // Auto-delete pending confirmation state
+    val pendingAutoDelete by viewModel.pendingAutoDelete.collectAsState()
+
     LaunchedEffect(deleteMessage) {
         if (deleteMessage != null) {
             kotlinx.coroutines.delay(2500)
             viewModel.clearDeleteMessage()
+        }
+    }
+
+    val context = LocalContext.current
+
+    // Backup launcher
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    val json = viewModel.exportAllCardsAsJson()
+                    if (json != null) {
+                        outputStream.write(json.toByteArray(Charsets.UTF_8))
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    // Import launcher
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { inputStream: InputStream ->
+                    val json = String(inputStream.readBytes(), Charsets.UTF_8)
+                    val result = viewModel.importCardsFromJson(json)
+                    if (result >= 0) {
+                        // Import success — the searchResults flow will auto-update
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 
@@ -336,7 +384,6 @@ private fun AdminPanelScreen(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             // Stats row
@@ -450,6 +497,12 @@ private fun AdminPanelScreen(
                         AdminActionButton("সব সিলেক্ট", Icons.Default.SelectAll, GovBlue) {
                             viewModel.selectAll(cards)
                         }
+                        AdminActionButton("ব্যাকআপ", Icons.Default.Backup, Color(0xFF6D28D9)) {
+                            backupLauncher.launch("application/json")
+                        }
+                        AdminActionButton("ইম্পোর্ট", Icons.Default.Restore, Color(0xFF0369A1)) {
+                            importLauncher.launch("application/json")
+                        }
                         if (!timerActive) {
                             AdminActionButton("টাইমার", Icons.Default.Timer, GovGold) {
                                 showTimerDialog = true
@@ -502,43 +555,53 @@ private fun AdminPanelScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Cards list
-            if (cards.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            modifier = Modifier.size(72.dp),
-                            shape = CircleShape,
-                            color = Color(0xFFF1F5F9)
+            // Cards list (LazyColumn for performance)
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+                if (cards.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.Inbox, null, modifier = Modifier.size(36.dp), tint = GovTextMuted)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Surface(
+                                    modifier = Modifier.size(72.dp),
+                                    shape = CircleShape,
+                                    color = Color(0xFFF1F5F9)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Outlined.Inbox, null, modifier = Modifier.size(36.dp), tint = GovTextMuted)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text("কোনো NID ডাটা নেই", color = GovTextLight, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Text("নতুন NID কার্ড তৈরি করুন", color = GovTextMuted, fontSize = 13.sp)
                             }
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text("কোনো NID ডাটা নেই", color = GovTextLight, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                        Text("নতুন NID কার্ড তৈরি করুন", color = GovTextMuted, fontSize = 13.sp)
+                    }
+                } else {
+                    items(cards, key = { it.id }) { card ->
+                        AdminNIDCardItem(
+                            card = card,
+                            isSelected = selectedIds.contains(card.id),
+                            onSelect = { viewModel.toggleSelection(card.id) },
+                            onView = {
+                                navController.navigate("view_nid/${card.id}")
+                            },
+                            onDelete = {
+                                cardToDelete = card
+                                showDeleteCardDialog = true
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
-            } else {
-                cards.forEach { card ->
-                    AdminNIDCardItem(
-                        card = card,
-                        isSelected = selectedIds.contains(card.id),
-                        onSelect = { viewModel.toggleSelection(card.id) },
-                        onView = {
-                            navController.navigate("view_nid/${card.id}")
-                        },
-                        onDelete = { viewModel.deleteCard(card.nid) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
 
         // Confirm dialog
@@ -606,7 +669,10 @@ private fun AdminPanelScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TimerTypeChip("ঘণ্টা", "hours", timerInputType) { timerInputType = "hours" }
                             TimerTypeChip("দিন", "days", timerInputType) { timerInputType = "days" }
-                            TimerTypeChip("তারিখ", "date", timerInputType) { showDatePicker = true }
+                            TimerTypeChip("তারিখ", "date", timerInputType) {
+                                timerInputType = "date"
+                                showDatePicker = true
+                            }
                         }
 
                         if (timerInputType != "date") {
@@ -708,6 +774,88 @@ private fun AdminPanelScreen(
                     }
                 }
             ) { DatePicker(state = datePickerState) }
+        }
+
+        // Single card delete confirmation dialog
+        if (showDeleteCardDialog && cardToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteCardDialog = false; cardToDelete = null },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                icon = {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = ErrorBg
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Delete, null, tint = GovRed, modifier = Modifier.size(26.dp))
+                        }
+                    }
+                },
+                title = { Text("NID কার্ড ডিলিট করবেন?", fontWeight = FontWeight.Bold) },
+                text = { Text("NID: ${cardToDelete?.nid}\n${cardToDelete?.nameBn}\n\nএটি পূর্বাবস্থায় ফেরানো যাবে না।", color = GovTextSecondary) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            cardToDelete?.let { viewModel.deleteCard(it.nid) }
+                            showDeleteCardDialog = false
+                            cardToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = GovRed),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("হ্যাঁ, ডিলিট করুন", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showDeleteCardDialog = false; cardToDelete = null },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("না", color = GovTextSecondary)
+                    }
+                }
+            )
+        }
+
+        // Auto-delete pending confirmation dialog (timer expired while app was closed)
+        if (pendingAutoDelete) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissPendingAutoDelete() },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                icon = {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = ErrorBg
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Timer, null, tint = GovRed, modifier = Modifier.size(26.dp))
+                        }
+                    }
+                },
+                title = { Text("অটো-ডিলিট টাইমার মেয়াদ উত্তীর্ণ!", fontWeight = FontWeight.Bold, color = GovRed) },
+                text = { Text("আপনার নির্ধারিত টাইমার মেয়াদ উত্তীর্ণ হয়েছে।\nআপনি কি সব NID ডাটা ডিলিট করতে চান?\nএটি পূর্বাবস্থায় ফেরানো যাবে না।", color = GovTextSecondary) },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.confirmPendingAutoDelete() },
+                        colors = ButtonDefaults.buttonColors(containerColor = GovRed),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("হ্যাঁ, সব ডিলিট করুন", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { viewModel.dismissPendingAutoDelete() },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("না, টাইমার বন্ধ করুন", color = GovTextSecondary)
+                    }
+                }
+            )
         }
     }
 }

@@ -2,7 +2,6 @@ package com.nidcard.app.ui.screens.view
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -21,7 +20,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,8 +75,8 @@ fun ViewNIDScreen(
     LaunchedEffect(card.id) {
         withContext(Dispatchers.IO) {
             try {
-                frontBitmap = NIDCardExporter.generateFrontCardBitmap(card, context)
-                backBitmap = NIDCardExporter.generateBackCardBitmap(card, context)
+                frontBitmap = NIDCardExporter.generateFrontCardBitmap(card)
+                backBitmap = NIDCardExporter.generateBackCardBitmap(card)
             } catch (e: Exception) {
                 // Handle gracefully
             }
@@ -89,11 +87,11 @@ fun ViewNIDScreen(
         scope.launch {
             isDownloading = true
             try {
-                val front = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateFrontCardBitmap(card, context)
+                val front = frontBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateFrontCardBitmap(card)
                 }
-                val back = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateBackCardBitmap(card, context)
+                val back = backBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateBackCardBitmap(card)
                 }
                 withContext(Dispatchers.IO) {
                     val file = NIDCardExporter.saveAsPDF(front, back, context, card.nid)
@@ -116,11 +114,11 @@ fun ViewNIDScreen(
         scope.launch {
             isDownloading = true
             try {
-                val front = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateFrontCardBitmap(card, context)
+                val front = frontBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateFrontCardBitmap(card)
                 }
-                val back = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateBackCardBitmap(card, context)
+                val back = backBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateBackCardBitmap(card)
                 }
                 withContext(Dispatchers.IO) {
                     val file = NIDCardExporter.saveAsImage(front, back, context, card.nid)
@@ -142,11 +140,11 @@ fun ViewNIDScreen(
     fun shareCard() {
         scope.launch {
             try {
-                val front = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateFrontCardBitmap(card, context)
+                val front = frontBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateFrontCardBitmap(card)
                 }
-                val back = withContext(Dispatchers.IO) {
-                    NIDCardExporter.generateBackCardBitmap(card, context)
+                val back = backBitmap ?: withContext(Dispatchers.IO) {
+                    NIDCardExporter.generateBackCardBitmap(card)
                 }
                 withContext(Dispatchers.IO) {
                     val file = NIDCardExporter.saveAsImage(front, back, context, card.nid)
@@ -201,6 +199,12 @@ fun ViewNIDScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("NID কার্ড প্রস্তুত!", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
                         Text("আপনার জাতীয় পরিচয় পত্র সফলভাবে তৈরি হয়েছে", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                    }
+                    // Edit button in top bar
+                    IconButton(onClick = {
+                        navController.navigate(com.nidcard.app.ui.navigation.ScreenRoutes.editNid(card.id))
+                    }) {
+                        Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(22.dp))
                     }
                     // Share button in top bar
                     IconButton(onClick = { shareCard() }) {
@@ -370,7 +374,7 @@ fun ViewNIDScreen(
             ) {
                 if (frontBitmap != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = frontBitmap!!.asImageBitmap(),
+                        bitmap = frontBitmap.asImageBitmap(),
                         contentDescription = "NID Card Front",
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -410,7 +414,7 @@ fun ViewNIDScreen(
             ) {
                 if (backBitmap != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = backBitmap!!.asImageBitmap(),
+                        bitmap = backBitmap.asImageBitmap(),
                         contentDescription = "NID Card Back",
                         modifier = Modifier.fillMaxWidth()
                     )

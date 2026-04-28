@@ -17,13 +17,11 @@ object NIDCardExporter {
 
     fun generateFrontCardBitmap(
         card: com.nidcard.app.data.entity.NIDCard,
-        context: Context,
         widthPx: Int = 1075,
         heightPx: Int = 680
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val density = context.resources.displayMetrics.density
 
         // White background
         canvas.drawColor(Color.WHITE)
@@ -76,9 +74,9 @@ object NIDCardExporter {
         }
         canvas.drawLine(0f, 90f, widthPx.toFloat(), 90f, linePaint)
 
-        // Load and draw photo
+        // Load and draw photo (H2 fix: use sampled decode)
         val photoBitmap = card.photoBase64.takeIf { it.isNotBlank() }?.let {
-            Base64Util.decodeToBitmap(it)
+            Base64Util.decodeToBitmapSampled(it, 200)
         }
         val photoX = 30f
         val photoY = 105f
@@ -93,9 +91,9 @@ object NIDCardExporter {
             canvas.drawText("📷", photoX + photoW / 2, photoY + photoH / 2 + 10f, textPaint)
         }
 
-        // Draw signature
+        // Draw signature (H2 fix: use sampled decode)
         val signBitmap = card.signBase64.takeIf { it.isNotBlank() }?.let {
-            Base64Util.decodeToBitmap(it)
+            Base64Util.decodeToBitmapSampled(it, 200)
         }
         val signY = photoY + photoH + 15f
         val signH = 80f
@@ -175,7 +173,6 @@ object NIDCardExporter {
 
     fun generateBackCardBitmap(
         card: com.nidcard.app.data.entity.NIDCard,
-        context: Context,
         widthPx: Int = 1075,
         heightPx: Int = 680
     ): Bitmap {
@@ -308,8 +305,9 @@ object NIDCardExporter {
         nid: String
     ): File? {
         return try {
-            // Use app-specific external directory (no permission needed on Android 10+)
-            val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "NIDCards")
+            val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                ?: return null
+            val downloadsDir = File(baseDir, "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
             val fileName = "NID_${nid}_${System.currentTimeMillis()}.png"
@@ -343,8 +341,9 @@ object NIDCardExporter {
         nid: String
     ): File? {
         return try {
-            // Use app-specific external directory (no permission needed on Android 10+)
-            val downloadsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "NIDCards")
+            val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+                ?: return null
+            val downloadsDir = File(baseDir, "NIDCards")
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
             val fileName = "NID_${nid}_${System.currentTimeMillis()}.pdf"

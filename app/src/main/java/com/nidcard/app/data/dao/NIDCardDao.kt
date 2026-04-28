@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface NIDCardDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(nidCard: NIDCard): Long
 
     @Update
@@ -28,8 +28,8 @@ interface NIDCardDao {
     @Query("SELECT * FROM nid_cards WHERE pin = :pin LIMIT 1")
     suspend fun getByPin(pin: String): NIDCard?
 
-    @Query("SELECT * FROM nid_cards WHERE nid = :nid OR pin = :nid LIMIT 1")
-    suspend fun searchByNidOrPin(nid: String): NIDCard?
+    @Query("SELECT * FROM nid_cards WHERE nid = :query OR pin = :query LIMIT 1")
+    suspend fun searchByNidOrPin(query: String): NIDCard?
 
     @Query("SELECT * FROM nid_cards ORDER BY createdAt DESC")
     fun getAllCards(): Flow<List<NIDCard>>
