@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Card background -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,20L84,20C86.2,20 88,21.8 88,24L88,84C88,86.2 86.2,88 84,88L24,88C21.8,88 20,86.2 20,84L20,24C20,21.8 21.8,20 24,20Z"/>
+    <!-- NID text -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M30,38L78,38L78,44L30,44ZM30,50L60,50L60,56L30,56ZM30,62L70,62L70,68L30,68Z"/>
+    <!-- Person icon -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M42,28C42,25.8 43.8,24 46,24C48.2,24 50,25.8 50,28C50,30.2 48.2,32 46,32C43.8,32 42,30.2 42,28Z"/>
+</vector>

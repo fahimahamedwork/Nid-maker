@@ -163,9 +163,9 @@ private fun AdminLoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = GovBorder)
+                        Divider(modifier = Modifier.weight(1f), color = GovBorder)
                         Text("অথবা", modifier = Modifier.padding(horizontal = 10.dp), fontSize = 12.sp, color = Color(0xFFADB5BD))
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = GovBorder)
+                        Divider(modifier = Modifier.weight(1f), color = GovBorder)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -182,7 +182,7 @@ private fun AdminLoginScreen(
                         onValueChange = { resetCode.value = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("রিসেট কোড দিন...") },
-                        leadingIcon = { Icon(Icons.Default.ShieldLock, null) },
+                        leadingIcon = { Icon(Icons.Default.Security, null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GovRed)
@@ -595,7 +595,7 @@ private fun AdminPanelScreen(
                                 onValueChange = { if (it.all { c -> c.isDigit() }) timerInputValue = it },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text(if (timerInputType == "hours") "ঘণ্টা সংখ্যা" else "দিন সংখ্যা") },
-                                leadingIcon = { Icon(Icons.Default.Numbers, null) },
+                                leadingIcon = { Icon(Icons.Default.Pin, null) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(10.dp),
                                 keyboardOptions = KeyboardOptions(
@@ -693,7 +693,7 @@ private fun AdminPanelScreen(
 }
 
 @Composable
-private fun StatCard(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
+private fun RowScope.StatCard(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
     Card(
         modifier = Modifier.weight(1f),
         shape = RoundedCornerShape(14.dp),

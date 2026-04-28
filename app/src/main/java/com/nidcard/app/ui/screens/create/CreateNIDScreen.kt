@@ -356,7 +356,7 @@ private fun SectionTitle(icon: androidx.compose.ui.graphics.vector.ImageVector, 
         Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = GovGreen)
     }
     Spacer(modifier = Modifier.height(10.dp))
-    HorizontalDivider(color = GovGreen, thickness = 2.dp)
+    Divider(color = GovGreen, thickness = 2.dp)
     Spacer(modifier = Modifier.height(12.dp))
 }
 
